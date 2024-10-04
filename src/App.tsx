@@ -90,9 +90,10 @@ export function App() {
             addColorShadeInFramer(shades);
           }}
         >
-          Add Shades on Framer
+          Add Palette on Framer
         </button>
-        <footer className="mt-[54px]">
+        <footer className="mt-[38px]">
+          <p className="text-xs text-neutral-400 mb-1">v1.0.0</p>
           <p>
             Made with ❤️ by{" "}
             <a target="_blank" href="https://instagram.com/lenderson.macedo">

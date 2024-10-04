@@ -20,7 +20,10 @@ export const saveColor = async (colorName: string, color: ColorResult) => {
 
 const SHADE_URL = "https://framer.com/m/Color-Shades-9VbF.js";
 
-export const addColorShadeInFramer = async (color: ColorResult) => {
+export const addColorShadeInFramer = async (
+  color: ColorResult,
+  name: string = "Color Palette"
+) => {
   const colorShades = color.palette.primary;
 
   const attributes = Object.entries(colorShades).reduce(
@@ -38,6 +41,7 @@ export const addColorShadeInFramer = async (color: ColorResult) => {
       controls: {
         ...attributes,
       },
+      name: name,
     },
   });
 
