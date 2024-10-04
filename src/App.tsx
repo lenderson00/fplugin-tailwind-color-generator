@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { showUI } from "./setup/show-ui";
-import { getColors } from "theme-colors";
 
 import {
   Color,
@@ -15,8 +14,13 @@ import {
   Label,
 } from "react-aria-components";
 import { ColorSlider, SliderTrack } from "react-aria-components";
-import { findClosestColor, getTextColor } from "./lib/colors";
 import { CanvasNode, framer } from "framer-plugin";
+import { getContrastColor, tailwindcssPaletteGenerator } from "./lib";
+import { ColorResult } from "./lib/interfaces";
+import namer from "color-namer";
+
+const colorShaderURL =
+  "https://framer.com/m/Color-Shades-9VbF.js@drqgej0EYi2KWdFgxXcB";
 
 const useSelectionColor = () => {
   const [selection, setSelection] = useState<CanvasNode[]>([]);
@@ -57,69 +61,64 @@ const useSelectionColor = () => {
 };
 
 export function App() {
-  const [color, setColor] = useState("hsl(43, 100%, 50%)");
-  const [shades, setShades] = useState<{ [key: number]: string }>({});
+  const [color, setColor] = useState(parseColor("#FFC700"));
+  const [shades, setShades] = useState<ColorResult>(
+    tailwindcssPaletteGenerator(color.toString("hex"))
+  );
   const [colorName, setColorName] = useState("");
-
-  const selectedColor = useSelectionColor();
 
   useEffect(() => {
     showUI();
   }, []);
 
-  useEffect(() => {
-    if (!selectedColor) return;
-    setColor(selectedColor);
-  }, [selectedColor]);
+  const getColorName = useCallback((color: string) => {
+    return namer(color, { pick: ["ntc"] }).ntc[0].name;
+  }, []);
 
   useEffect(() => {
-    const shades = getColors(color);
+    const shades = tailwindcssPaletteGenerator(color.toString("hex"));
+    setColorName(getColorName(color.toString("hex")));
     setShades(shades);
-  }, [color]);
+  }, [color, getColorName]);
 
   return (
-    <main className="flex flex-col items-center w-full gap-2 ">
-      <div className="framer-divider" />
-      <div className=" w-full flex justify-between items-center">
-        <label className=" ">Color Name</label>
-        <input
-          type="text"
-          value={colorName}
-          onChange={(e) => setColorName(e.target.value)}
-        />
+    <main className="flex  flex-row w-full gap-4 ">
+      <div className="w-full flex flex-col gap-2">
+        <Preview result={shades} />
       </div>
-      <div className="framer-divider" />
-      <FramerColorPicker initialColor={color} onChange={setColor} />
-      <button className="framer-button-primary mt-4">Salvar</button>
-
-      <Preview color={color} />
+      <div className="w-full flex flex-col gap-2">
+        <div className=" w-full flex justify-between items-center">
+          <label className=" ">Color Name</label>
+          <input
+            type="text"
+            value={colorName}
+            onChange={(e) => setColorName(e.target.value)}
+          />
+        </div>
+        <FramerColorPicker color={color} onChange={setColor} />
+        <button className="framer-button-primary mt-4">Save as Style</button>
+        <button
+          className="framer-button-primary"
+          onClick={() => {
+            addColorShadeInFramer(shades);
+          }}
+        >
+          Add Shades on Framer
+        </button>
+      </div>
     </main>
   );
 }
 
 type FramerColorPickerProps = {
-  initialColor: string;
-  onChange: (color: string) => void;
+  color: Color;
+  onChange: (color: Color) => void;
 };
 
-function FramerColorPicker({ initialColor, onChange }: FramerColorPickerProps) {
-  const [color, setColor] = useState(parseColor(initialColor));
-
-  const handleChange = (color: Color | null) => {
-    if (!color) return;
-    setColor(color);
-    const hexColor = color.toString("hex");
-
-    onChange(hexColor);
-  };
-
+function FramerColorPicker({ color, onChange }: FramerColorPickerProps) {
   return (
     <div className="w-full">
-      <ColorPicker
-        defaultValue="#5100FF"
-        value={initialColor ? parseColor(initialColor) : parseColor("#ffc700")}
-        onChange={handleChange}
-      >
+      <ColorPicker defaultValue="#5100FF" value={color} onChange={onChange}>
         <Label className="hidden">Seletor de Cor</Label>
         <ColorArea
           colorSpace="hsb"
@@ -129,7 +128,7 @@ function FramerColorPicker({ initialColor, onChange }: FramerColorPickerProps) {
         >
           <ColorThumb />
         </ColorArea>
-        <ColorSlider channel="hue" colorSpace="hsb" className="w-full">
+        <ColorSlider colorSpace="hsb" channel="hue" className="w-full">
           <SliderTrack className="h-2 mt-4 rounded-full relative">
             <ColorThumb className="border-2 border-white shadow-[0_0_0_1px_black_inset_0_0_0_1px_black] w-5 h-5 rounded-full box-border data-[focus-visible]:w-6 data-[focus-visible]:h-6 top-1/2" />
           </SliderTrack>
@@ -146,39 +145,37 @@ function FramerColorPicker({ initialColor, onChange }: FramerColorPickerProps) {
   );
 }
 
-interface ColorShadesProps {
-  shades: Record<string, string>;
-  primaryColor: string;
-}
-
-const Preview: React.FC<{ color: string }> = ({ color }) => {
+const Preview: React.FC<{ result: ColorResult }> = ({ result }) => {
+  const colorShades = result.palette.primary;
+  const activeShade = result.activeShade;
   return (
-    <div className="w-full flex flex-col gap-2 mt-4">
-      <div>Preview</div>
-      <div
-        className="w-full h-24 bg-primary rounded-lg"
-        style={{ backgroundColor: color }}
-      />
-    </div>
-  );
-};
+    <div className="w-full flex flex-col gap-0 overflow-hidden rounded-lg">
+      {Object.values(colorShades).map((shade) => {
+        const colorShadeNumber = Object.keys(colorShades).find(
+          (key) => colorShades[key] === shade
+        );
 
-const ColorShades: React.FC<ColorShadesProps> = ({ shades, primaryColor }) => {
-  const closestColor = findClosestColor(primaryColor, shades);
-
-  return (
-    <div className="grid grid-cols-4 sm:grid-cols-4 gap-4">
-      {Object.entries(shades).map(([shade, color]) => (
-        <div
-          key={shade}
-          className={`flex items-center justify-center w-16 h-16 rounded-lg ${
-            color === closestColor ? "border-4 border-primary" : ""
-          }`}
-          style={{ backgroundColor: color, color: getTextColor(color) }}
-        >
-          <span className="font-bold">{shade}</span>
-        </div>
-      ))}
+        return (
+          <div
+            key={shade}
+            className="w-full h-10 flex items-center justify-between px-4 font-bold relative"
+            style={{
+              backgroundColor: shade,
+              color: getContrastColor(shade),
+            }}
+          >
+            <div
+              data-visible={activeShade === colorShadeNumber}
+              className={`w-1 h-1 rounded-full absolute left-1/2 -translate-x-1/2 bg-black data-[visible=true]:block hidden`}
+              style={{
+                backgroundColor: getContrastColor(shade),
+              }}
+            />
+            <span>{colorShadeNumber}</span>
+            <span>{shade}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -187,5 +184,29 @@ const saveColor = async (colorName: string, color: string) => {
   return await framer.createColorStyle({
     name: colorName,
     light: color,
+  });
+};
+
+const addColorShadeInFramer = async (color: ColorResult) => {
+  const colorShades = color.palette.primary;
+
+  const attributes = Object.entries(colorShades).reduce(
+    (acc, [key, shade]) => ({
+      ...acc,
+      [`c${key}`]: shade,
+      [`t${key}`]: shade,
+    }),
+    {}
+  );
+
+  console.log(attributes);
+
+  await framer.addDetachedComponentLayers({
+    url: colorShaderURL,
+    attributes: {
+      controls: {
+        ...attributes,
+      },
+    },
   });
 };
