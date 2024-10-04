@@ -12,13 +12,16 @@
     "test": "tsx test/index.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.7",
     "chroma-js": "^3.1.1",
     "color-diff": "^1.4.0",
     "color-namer": "^1.4.0",
     "framer-plugin": "^1",
+    "lucide-react": "^0.447.0",
     "react": "^18",
     "react-aria-components": "^1.4.0",
     "react-dom": "^18",
+    "slugify": "^1.6.6",
     "tailwindcss-react-aria-components": "^1.1.6",
     "theme-colors": "^0.1.0",
     "vite-plugin-mkcert": "^1"
